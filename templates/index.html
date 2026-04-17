@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #eceff1; }
+        .app-container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        .ui-header { display: flex; gap: 10px; margin-bottom: 25px; }
+        input { flex: 1; padding: 12px; border: 2px solid #cfd8dc; border-radius: 8px; font-size: 16px; transition: 0.3s; }
+        input:focus { border-color: #2196f3; outline: none; }
+        button { padding: 12px 25px; background: #2196f3; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #1976d2; }
+        #map { height: 550px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #b0bec5; }
+        .legend { background: white; padding: 12px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); line-height: 1.6; }
+        .legend b { display: block; margin-bottom: 5px; border-bottom: 1px solid #eee; }
+        table { width: 100%; border-collapse: collapse; background: #fafafa; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 14px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f5f5f5; color: #455a64; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="ui-header">
+        <input type="text" id="addressInput" placeholder="Введите адрес для теста..." value="Санкт-Петербург, Невский проспект, 1">
+        <button onclick="runSearch()">Сравнить</button>
+    </div>
+
+    <div id="map"></div>
+
+    <table id="resultsTable">
+        <thead>
+            <tr>
+                <th>Сервис</th>
+                <th>Широта</th>
+                <th>Долгота</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const map = L.map('map').setView([55.75, 37.61], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    const legend = L.control({position: 'topright'});
+    legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = `<b>Движки:</b>
+            <div style="color:blue">● Nominatim</div>
+            <div style="color:green">● Photon</div>
+            <div style="color:red">● Pelias</div>
+            <div style="color:#f1c40f">● Yandex</div>`;
+        return div;
+    };
+    legend.addTo(map);
+
+    let markers = [];
+
+    async function runSearch() {
+        const addr = document.getElementById('addressInput').value;
+        const response = await fetch(`/search?address=${encodeURIComponent(addr)}`);
+        const data = await response.json();
+
+        // Чистим старое
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        const tbody = document.querySelector('#resultsTable tbody');
+        tbody.innerHTML = '';
+
+        data.forEach(item => {
+            // Ставим цветную точку
+            const marker = L.circleMarker(item.coords, {
+                radius: 10,
+                fillColor: item.color,
+                color: "#fff",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).addTo(map).bindPopup(`<b>${item.name}</b>`);
+
+            markers.push(marker);
+
+            // Пишем в таблицу
+            const row = `<tr>
+                <td style="color:${item.color}; font-weight:bold">${item.name}</td>
+                <td>${item.coords[0]}</td>
+                <td>${item.coords[1]}</td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        if (data.length > 0) {
+            map.setView(data[0].coords, 16);
+        }
+    }
+</script>
+</body>
+</html>

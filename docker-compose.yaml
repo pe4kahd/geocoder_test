@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  geocoder_test:
+    container_name: geocoder_test
+    build:
+      context: . # Путь к папке со вторым приложением
+    restart: always
+    env_file:
+      - .env
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.card-counter.rule=Host(`geocoder_test.geo.prod.org.rea`)"
+      - "traefik.http.routers.card-counter.entrypoints=web"
+      - "traefik.http.services.card-counter.loadbalancer.server.port=8000"
+
+networks:
+  traefik-public:
+    external: true
